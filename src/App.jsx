@@ -2,46 +2,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CATS = ["All", "Family", "Garden", "Holidays", "Places", "Travel", "Other"];
-
-const SQL = `-- 1. Run this in your Supabase SQL Editor
-
-create table photos (
-  id uuid primary key default gen_random_uuid(),
-  title text not null,
-  category text default 'Other',
-  storage_path text not null,
-  created_at timestamptz default now()
-);
-
-create table notes (
-  id uuid primary key default gen_random_uuid(),
-  photo_id uuid references photos(id) on delete cascade,
-  text text not null,
-  created_at timestamptz default now()
-);
-
-create table audio_notes (
-  id uuid primary key default gen_random_uuid(),
-  photo_id uuid references photos(id) on delete cascade,
-  storage_path text not null,
-  label text,
-  created_at timestamptz default now()
-);
-
-alter table photos enable row level security;
-alter table notes enable row level security;
-alter table audio_notes enable row level security;
-
-create policy "Public read" on photos for select using (true);
-create policy "Public read" on notes for select using (true);
-create policy "Public read" on audio_notes for select using (true);
-
-create policy "Auth all" on photos for all using (auth.role()='authenticated') with check (auth.role()='authenticated');
-create policy "Auth all" on notes for all using (auth.role()='authenticated') with check (auth.role()='authenticated');
-create policy "Auth all" on audio_notes for all using (auth.role()='authenticated') with check (auth.role()='authenticated');
-
--- 2. In Storage, create two PUBLIC buckets: "photos" and "audio-notes"
--- 3. In Authentication > Users, add your grandma's email + password`;
+const IMAGE_EXTS = new Set(["jpg", "jpeg", "png", "gif", "webp", "avif", "heic", "heif", "svg", "bmp", "tiff", "tif"]);
+const titleFromFilename = (name) =>
+  name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).trim() || "Untitled";
 
 // ─── Supabase API ─────────────────────────────────────────────────────────────
 const mkApi = (projectUrl, anonKey) => {
@@ -52,7 +15,7 @@ const mkApi = (projectUrl, anonKey) => {
     ...(json && { "Content-Type": "application/json" }),
   });
   return {
-    publicUrl: (bucket, path) => `${base}/storage/v1/object/public/${bucket}/${path}`,
+    publicUrl: (bucket, path) => `${base}/storage/v1/object/public/${bucket}/${path.split("/").map(encodeURIComponent).join("/")}`,
     async signIn(email, password) {
       const r = await fetch(`${base}/auth/v1/token?grant_type=password`, {
         method: "POST", headers: hd(null), body: JSON.stringify({ email, password }),
@@ -123,8 +86,30 @@ const mkApi = (projectUrl, anonKey) => {
     async deletePhoto(id, token) {
       await fetch(`${base}/rest/v1/photos?id=eq.${id}`, { method: "DELETE", headers: hd(token) });
     },
+    async listStorageFiles(bucket, prefix = "", token) {
+      const r = await fetch(`${base}/storage/v1/object/list/${bucket}`, {
+        method: "POST", headers: hd(token),
+        body: JSON.stringify({ prefix, limit: 1000, offset: 0, sortBy: { column: "name", order: "asc" } }),
+      });
+      if (!r.ok) throw new Error(`Failed to list storage files (${r.status})`);
+      return r.json();
+    },
+    async syncPhoto(title, category, storagePath, token) {
+      const r = await fetch(`${base}/rest/v1/photos`, {
+        method: "POST", headers: { ...hd(token), Prefer: "return=representation" },
+        body: JSON.stringify({ title, category, storage_path: storagePath }),
+      });
+      if (!r.ok) return null;
+      const d = await r.json();
+      return { ...d[0], notes: [], audio_notes: [] };
+    },
   };
 };
+
+if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+  throw new Error("Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY environment variables");
+}
+const api = mkApi(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const injectStyles = () => {
@@ -218,10 +203,6 @@ const injectStyles = () => {
     .tip{background:#fff8e8;border:2px solid var(--cg);border-radius:10px;padding:1.2rem 1.5rem;margin:1.5rem 0;display:flex;gap:1rem;align-items:flex-start;}
     .tip .ti{font-size:1.8rem;}.tip .tt{font-size:1rem;color:var(--cm);line-height:1.6;}
     .tip .tt strong{color:var(--cd);}
-    .setup{max-width:700px;margin:3rem auto;padding:0 1rem;}
-    .setup-card{background:#fff;border-radius:16px;padding:2.5rem;box-shadow:0 4px 24px var(--shd);border:1px solid var(--csl);}
-    .setup h1{font-family:var(--fd);font-size:2.2rem;color:var(--cd);margin-bottom:.5rem;}
-    .steps-tog{background:none;border:none;color:var(--cgr);font-family:var(--fb);font-size:1rem;font-weight:600;cursor:pointer;padding:.5rem 0;display:flex;align-items:center;gap:.4rem;text-decoration:underline;}
     .code-block{background:var(--cd);color:#e8d5b0;border-radius:8px;padding:1.2rem;font-family:monospace;font-size:.82rem;line-height:1.5;overflow-x:auto;white-space:pre;margin:.75rem 0;}
     .upload-zone{border:3px dashed var(--cs);border-radius:12px;padding:3rem 2rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--cr);}
     .upload-zone:hover,.upload-zone.drag{border-color:var(--cg);background:var(--csl);}
@@ -267,18 +248,6 @@ const fmtDate = (d) => new Date(d).toLocaleDateString("en-US", { year: "numeric"
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
-  // Config & API
-  const [cfg, setCfg] = useState(null); // { url, key }
-  const [api, setApi] = useState(null);
-  const [cfgLoading, setCfgLoading] = useState(true);
-
-  // Setup form
-  const [setupUrl, setSetupUrl] = useState("");
-  const [setupKey, setSetupKey] = useState("");
-  const [setupErr, setSetupErr] = useState("");
-  const [setupTesting, setSetupTesting] = useState(false);
-  const [showSql, setShowSql] = useState(false);
-
   // App state
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -291,7 +260,6 @@ export default function App() {
   // Modals
   const [showLogin, setShowLogin] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
 
   // Login form
   const [loginEmail, setLoginEmail] = useState("");
@@ -326,61 +294,53 @@ export default function App() {
 
   const photo = photos.find((p) => p.id === selId);
 
-  // Load saved config
-  useEffect(() => {
-    injectStyles();
-    (async () => {
-      try {
-        const r = await window.storage.get("sb-cfg");
-        if (r) {
-          const c = JSON.parse(r.value);
-          setCfg(c);
-          setApi(mkApi(c.url, c.key));
-        }
-      } catch {}
-      setCfgLoading(false);
-    })();
-  }, []);
+  const syncStoragePhotos = useCallback(async (existingPhotos) => {
+    let files;
+    try {
+      files = await api.listStorageFiles("photos", "", session?.access_token);
+      console.log("[sync] storage files:", files);
+    } catch (e) {
+      console.log("[sync] listStorageFiles failed:", e);
+      return [];
+    }
+    const existingPaths = new Set(existingPhotos.map((p) => p.storage_path));
+    console.log("[sync] existing paths:", [...existingPaths]);
+    const missing = files.filter((f) => {
+      if (!f.name || f.id === null) return false;
+      const ext = f.name.split(".").pop().toLowerCase();
+      return IMAGE_EXTS.has(ext) && !existingPaths.has(f.name);
+    });
+    console.log("[sync] missing files:", missing);
+    if (missing.length === 0) return [];
+    const token = session?.access_token || null;
+    const created = [];
+    for (const f of missing) {
+      const photo = await api.syncPhoto(titleFromFilename(f.name), "Other", f.name, token);
+      console.log("[sync] syncPhoto result for", f.name, ":", photo);
+      if (photo) created.push(photo);
+    }
+    return created;
+  }, [session]);
 
-  // Load photos when API ready
-  useEffect(() => {
-    if (!api) return;
-    loadPhotos();
-  }, [api]);
-
-  const loadPhotos = async () => {
+  const loadPhotos = useCallback(async () => {
     setLoading(true);
     setLoadErr("");
     try {
       const data = await api.getPhotos();
-      setPhotos(data.map((p) => ({ ...p, notes: p.notes || [], audio_notes: p.audio_notes || [] })));
+      const existing = data.map((p) => ({ ...p, notes: p.notes || [], audio_notes: p.audio_notes || [] }));
+      const synced = await syncStoragePhotos(existing);
+      setPhotos(synced.length > 0 ? [...synced, ...existing] : existing);
     } catch (e) {
       setLoadErr(e.message);
     }
     setLoading(false);
-  };
+  }, [syncStoragePhotos]);
 
-  // Setup connect
-  const handleConnect = async () => {
-    if (!setupUrl.trim() || !setupKey.trim()) { setSetupErr("Please fill in both fields."); return; }
-    setSetupTesting(true); setSetupErr("");
-    try {
-      const testApi = mkApi(setupUrl.trim(), setupKey.trim());
-      await testApi.getPhotos();
-      const c = { url: setupUrl.trim(), key: setupKey.trim() };
-      await window.storage.set("sb-cfg", JSON.stringify(c));
-      setCfg(c);
-      setApi(testApi);
-    } catch (e) {
-      setSetupErr(`Connection failed: ${e.message}. Check your URL and key.`);
-    }
-    setSetupTesting(false);
-  };
+  useEffect(() => { injectStyles(); }, []);
 
-  const handleDisconnect = async () => {
-    await window.storage.delete("sb-cfg").catch(() => {});
-    setCfg(null); setApi(null); setPhotos([]); setSession(null); setShowSettings(false);
-  };
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { loadPhotos(); }, [loadPhotos]);
+
 
   // Login
   const handleLogin = async () => {
@@ -490,48 +450,6 @@ export default function App() {
 
   const filteredPhotos = filter === "All" ? photos : photos.filter((p) => p.category === filter);
 
-  // ── Setup Screen ────────────────────────────────────────────────────────────
-  if (cfgLoading) return <div className="loading"><div className="spin" /><p>Loading...</p></div>;
-
-  if (!cfg) return (
-    <div>
-      <header className="hdr">
-        <div className="logo">Memories in Bloom <span>Family Photo Collection</span></div>
-      </header>
-      <div className="setup">
-        <div className="setup-card">
-          <h1>Connect to Supabase</h1>
-          <div className="divider" />
-          <p style={{ color: "var(--cm)", marginBottom: "1.5rem", fontSize: "1.05rem" }}>
-            Enter your Supabase project details below. You'll find these in your Supabase dashboard under <strong>Project Settings → API</strong>.
-          </p>
-          <label className="flabel" htmlFor="surl">Project URL</label>
-          <input id="surl" className="finput" type="url" value={setupUrl} onChange={(e) => setSetupUrl(e.target.value)}
-            placeholder="https://xxxxxxxxxxxx.supabase.co" />
-          <label className="flabel" htmlFor="skey">Anon / Public Key</label>
-          <input id="skey" className="finput" type="text" value={setupKey} onChange={(e) => setSetupKey(e.target.value)}
-            placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." />
-          {setupErr && <p className="ferr">{setupErr}</p>}
-          <button className="btn bp blg" onClick={handleConnect} disabled={setupTesting} style={{ width: "100%" }}>
-            {setupTesting ? "Testing connection…" : <><Ic d={I.check} /> Test & Connect</>}
-          </button>
-
-          <button className="steps-tog" onClick={() => setShowSql(!showSql)} style={{ marginTop: "1.5rem" }}>
-            {showSql ? "▲" : "▼"} {showSql ? "Hide" : "Show"} database setup instructions
-          </button>
-          {showSql && (
-            <div>
-              <p style={{ color: "var(--cm)", fontSize: ".95rem", margin: ".5rem 0" }}>
-                Run this SQL in <strong>Supabase → SQL Editor</strong>, then create two <strong>public</strong> storage buckets named <code>photos</code> and <code>audio-notes</code>, then add your grandma's account under <strong>Authentication → Users</strong>.
-              </p>
-              <div className="code-block">{SQL}</div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-
   // ── Main App ────────────────────────────────────────────────────────────────
   return (
     <div>
@@ -549,10 +467,7 @@ export default function App() {
           <button className="btn bg" onClick={() => setView("tutorial")} style={{ fontSize: ".95rem", padding: ".5rem 1rem" }}>
             <Ic d={I.help} s={16} /> How to Use
           </button>
-          <button className="btn bg" onClick={() => setShowSettings(true)} style={{ fontSize: ".95rem", padding: ".5rem .7rem" }}>
-            <Ic d={I.gear} s={18} />
-          </button>
-          {session ? (
+{session ? (
             <button className="btn bg" onClick={() => setSession(null)} style={{ fontSize: ".95rem", padding: ".5rem 1rem" }}>
               <Ic d={I.out} s={16} /> Sign Out
             </button>
@@ -587,21 +502,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Settings Modal */}
-      {showSettings && (
-        <div className="overlay" onClick={() => setShowSettings(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Settings</h2>
-            <p className="sub">Connected to: <strong style={{ wordBreak: "break-all" }}>{cfg.url}</strong></p>
-            <div className="macts">
-              <button className="btn bd blg" onClick={handleDisconnect}>Disconnect & Reset</button>
-              <button className="btn bo blg" onClick={() => setShowSettings(false)}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Upload Modal */}
+{/* Upload Modal */}
       {showUpload && (
         <div className="overlay" onClick={() => !upLoading && setShowUpload(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
