@@ -1,0 +1,9 @@
+.hdr{background:var(--cd);color:var(--cr);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:80px;box-shadow:0 3px 12px var(--shd);position:sticky;top:0;z-index:100;}
+.logo{font-family:var(--fd);font-size:1.5rem;color:var(--cgl);letter-spacing:.02em;font-style:italic;cursor:pointer;text-decoration:none;display:block;}
+.logo span{color:var(--cr);font-style:normal;font-size:.85rem;display:block;font-family:var(--fb);letter-spacing:.15em;text-transform:uppercase;}
+.nav{display:flex;gap:.5rem;align-items:center;}
+
+@media(max-width:640px){
+  .hdr{padding:0 1rem;}
+  .logo{font-size:1.1rem;}
+}

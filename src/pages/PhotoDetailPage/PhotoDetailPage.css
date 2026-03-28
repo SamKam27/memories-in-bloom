@@ -1,0 +1,4 @@
+.detail{max-width:960px;margin:0 auto;}
+.dimg{width:100%;border-radius:12px;box-shadow:0 4px 24px var(--shd);display:block;max-height:500px;object-fit:cover;}
+.dhead{margin:1.5rem 0 1rem;}
+.dhead h2{font-family:var(--fd);font-size:2rem;}
