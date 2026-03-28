@@ -1,0 +1,5 @@
+.upload-zone{border:3px dashed var(--cs);border-radius:12px;padding:3rem 2rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--cr);}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--cg);background:var(--csl);}
+.upload-zone p{color:var(--cm);font-size:1.1rem;margin-top:.5rem;}
+.prog{height:8px;background:var(--csl);border-radius:4px;overflow:hidden;margin:.75rem 0;}
+.prog-bar{height:100%;background:var(--cg);border-radius:4px;transition:width .3s;}

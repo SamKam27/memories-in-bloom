@@ -1,0 +1,33 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+
+:root{
+  --cr:#FDF6E9;--cw:#FEFCF7;--cd:#2C1A0E;--cm:#5C3D1E;--cl:#8B5E3C;
+  --cg:#C49A2C;--cgl:#E8C86A;--cs:#D4A96A;--csl:#F0DDB8;
+  --cgr:#3D6B4F;--crd:#8B2B2B;--sh:rgba(44,26,14,.15);--shd:rgba(44,26,14,.3);
+  --fd:'Playfair Display',Georgia,serif;--fb:'Lora',Georgia,serif;
+}
+
+body{background:var(--cr);color:var(--cd);font-family:var(--fb);font-size:19px;line-height:1.7;}
+
+main{min-height:calc(100vh - 80px);padding:2rem;max-width:1280px;margin:0 auto;}
+
+.hero{text-align:center;padding:3rem 1rem 2rem;}
+.hero h1{font-family:var(--fd);font-size:3rem;color:var(--cd);margin-bottom:.5rem;}
+.hero p{font-size:1.2rem;color:var(--cm);max-width:600px;margin:0 auto;}
+
+.divider{width:80px;height:3px;background:var(--cg);margin:1.2rem auto;border-radius:2px;}
+
+.empty{text-align:center;padding:1.5rem;color:var(--cl);font-size:1rem;font-style:italic;}
+
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5rem 2rem;gap:1rem;color:var(--cm);}
+.spin{width:48px;height:48px;border:4px solid var(--csl);border-top-color:var(--cg);border-radius:50%;animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+footer{text-align:center;padding:2rem;color:var(--cl);font-size:.95rem;border-top:2px solid var(--csl);margin-top:3rem;font-style:italic;}
+
+@media(max-width:640px){
+  main{padding:1rem;}
+  .hero h1{font-size:2rem;}
+}

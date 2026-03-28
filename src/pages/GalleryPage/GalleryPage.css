@@ -1,0 +1,11 @@
+.fbar{display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;margin:1.5rem 0 2rem;}
+.fbtn{font-family:var(--fb);font-size:1rem;padding:.5rem 1.4rem;border-radius:30px;border:2px solid var(--cl);background:transparent;color:var(--cm);cursor:pointer;transition:all .2s;font-weight:500;}
+.fbtn:hover{background:var(--csl);}
+.fbtn.act{background:var(--cd);color:var(--cr);border-color:var(--cd);}
+.fbtn:focus-visible{outline:3px solid var(--cg);outline-offset:3px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5rem;}
+.banner{background:linear-gradient(135deg,var(--cgr),#2d5a3d);color:#fff;border-radius:12px;padding:1rem 1.5rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:.75rem;font-size:1.05rem;}
+
+@media(max-width:640px){
+  .grid{grid-template-columns:1fr;}
+}

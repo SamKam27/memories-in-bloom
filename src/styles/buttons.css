@@ -1,0 +1,10 @@
+.btn{font-family:var(--fb);font-size:1rem;font-weight:600;border:none;border-radius:6px;padding:.6rem 1.4rem;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:.5rem;letter-spacing:.03em;}
+.btn:focus-visible{outline:3px solid var(--cg);outline-offset:3px;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.bp{background:var(--cg);color:var(--cd)}.bp:hover:not(:disabled){background:var(--cgl);transform:translateY(-1px);box-shadow:0 4px 12px var(--sh);}
+.bg{background:transparent;color:var(--cr);border:2px solid rgba(255,255,255,.4)}.bg:hover{background:rgba(255,255,255,.1);border-color:var(--cgl);}
+.bd{background:var(--crd);color:#fff}.bd:hover:not(:disabled){background:#a33;}
+.bs{background:var(--cgr);color:#fff}.bs:hover:not(:disabled){background:#2d5a3d;}
+.bo{background:transparent;color:var(--cm);border:2px solid var(--cl)}.bo:hover{background:var(--csl);}
+.blg{font-size:1.2rem;padding:.85rem 2rem;border-radius:8px;}
+.bsm{font-size:.9rem;padding:.4rem 1rem;}

@@ -13,18 +13,52 @@ No test framework is configured.
 
 ## Architecture
 
-**Memories in Bloom** is a family photo gallery app where members can view photos, add text notes, and record audio memories. React 19 + Vite 8 frontend with a Supabase backend (auth, storage, PostgreSQL).
+**Memories in Bloom** is a family photo gallery app where members can view photos, add text notes, and record audio memories. React 19 + Vite 8 + React Router frontend with a Supabase backend (auth, storage, PostgreSQL).
 
-### Single-component design
+### Project structure
 
-The entire UI lives in `src/App.jsx` (~850 lines). There are no separate component files. All views (setup, gallery, photo detail, tutorial) are conditionally rendered within this one component.
+```
+src/
+├── App.jsx                     # Router shell: Providers + Routes + layout
+├── api/supabase.js             # mkApi factory + Supabase singleton + constants
+├── hooks/
+│   ├── useAuth.jsx             # AuthContext/Provider + useAuth hook
+│   ├── usePhotos.jsx           # PhotosContext/Provider + usePhotos hook
+│   ├── useAudioRecorder.js     # MediaRecorder custom hook
+│   └── usePhotoUpload.js       # Photo upload form custom hook
+├── components/
+│   ├── Icon.jsx                # SVG icon component + icon path constants
+│   ├── Header/                 # App header with nav
+│   ├── LoginModal/             # Auth sign-in modal
+│   ├── UploadModal/            # Photo upload modal
+│   ├── PhotoCard/              # Gallery card (links to detail)
+│   ├── NoteEditor/             # Notes list + text editor + audio section
+│   └── AudioRecorder/          # Voice recording controls
+├── pages/
+│   ├── GalleryPage/            # Photo grid with category filters
+│   ├── PhotoDetailPage/        # Single photo + notes + audio
+│   └── TutorialPage/           # How-to guide
+├── utils/format.js             # fmt() and fmtDate() helpers
+└── styles/
+    ├── global.css              # CSS vars, reset, fonts, shared layout
+    ├── buttons.css             # .btn and all variants
+    └── modal.css               # Overlay, modal, form input styles
+```
+
+### Routes
+
+| Path | Page | Description |
+|------|------|-------------|
+| `/` | GalleryPage | Filter bar + photo card grid |
+| `/photo/:id` | PhotoDetailPage | Full image + notes + audio recorder |
+| `/tutorial` | TutorialPage | 6-step how-to guide |
 
 ### Key patterns
 
-- **`mkApi(url, key)`** — Factory function that returns an API wrapper object for all Supabase REST calls (auth, photos CRUD, notes, audio notes, storage URLs). All backend communication goes through this.
-- **`injectStyles()`** — All CSS (~2400 lines) is defined as a template string inside App.jsx and injected into the DOM dynamically. `App.css` and `index.css` are minimal.
-- **Supabase config in localStorage** — The app stores Supabase URL and anon key in `localStorage` under `sb-cfg`. A setup screen handles initial configuration.
-- **Audio recording** — Uses the MediaRecorder API to capture WebM audio, managed via refs (`mediaRecRef`, `chunksRef`, `timerRef`).
+- **`api/supabase.js`** — `mkApi(url, key)` factory returns an API wrapper for all Supabase REST calls. Exported singleton `api` is used throughout.
+- **React Context** — `AuthProvider` (session state, sign in/out, login modal) and `PhotosProvider` (photos array, loading, CRUD mutations) wrap the app.
+- **Custom hooks** — `useAudioRecorder` (MediaRecorder + refs + timer with cleanup on unmount), `usePhotoUpload` (upload form state + progress).
+- **CSS files** — Styles extracted into co-located `.css` files per component/page, plus shared files in `styles/`. No CSS-in-JS, no CSS Modules.
 
 ### Database schema
 

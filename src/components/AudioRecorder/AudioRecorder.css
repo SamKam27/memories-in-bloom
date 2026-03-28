@@ -1,0 +1,9 @@
+.arec{margin-top:1rem;padding:1.2rem;background:#f0f0fa;border-radius:10px;border:2px solid #c8c8f0;}
+.arec h4{font-family:var(--fd);font-size:1.1rem;color:#3d3d8b;margin-bottom:.75rem;}
+.recst{display:flex;align-items:center;gap:.6rem;font-size:1rem;color:#3d3d8b;margin-bottom:.75rem;font-weight:500;}
+.recdot{width:14px;height:14px;background:var(--crd);border-radius:50%;animation:pulse 1s ease-in-out infinite;flex-shrink:0;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.aitem{background:#f0f0fa;border-radius:8px;padding:.9rem 1.2rem;margin-bottom:.75rem;border-left:4px solid #7070c8;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;}
+.aitem audio{flex:1;min-width:200px;height:40px;}
+.albl{font-size:.95rem;color:#3d3d8b;font-weight:600;white-space:nowrap;}
+.aprev{width:100%;margin-top:.75rem;}
